@@ -43,7 +43,7 @@ setLoading(true);
 
 
 const { data } = await axios.post(
-    "https://skinsyncai-backend.onrender.com",
+    "https://skinsyncai-backend.onrender.com/api/v1/ai/analyze",
     { query }
   );
 
