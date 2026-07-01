@@ -27,7 +27,7 @@ useEffect(() => {
   navigate("/login");
   }
   
-  }, []);
+  }, [navigate]);
   
 
 const savedUser = JSON.parse(
