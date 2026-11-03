@@ -41,9 +41,8 @@ const handleAnalyze = async () => {
 try {
 setLoading(true);
 
-
 const { data } = await axios.post(
-    "https://skinsyncai-backend.onrender.com/api/v1/ai/analyze",
+    `${process.env.REACT_APP_API_URL || "https://skinsyncai-backend.onrender.com"}/api/v1/ai/analyze`,
     { query }
   );
 

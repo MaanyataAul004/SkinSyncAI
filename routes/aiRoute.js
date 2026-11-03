@@ -3,239 +3,113 @@ import products from "../data/products.js";
 
 const router = express.Router();
 
-router.post("/analyze", async (req, res) => {
-try {
+const pickVaried = (ranked, limit) => {
+  const picked = [];
+  const usedCategories = new Set();
 
-const { query } = req.body;
-
-const lowerQuery =
-  query.toLowerCase();
-
-/* ----------------------------- */
-/* BUDGET DETECTION */
-/* ----------------------------- */
-
-let budget = null;
-
-const budgetMatch =
-lowerQuery.match(/\d+/);
-
-if (budgetMatch) {
-
-budget = parseInt(
-budgetMatch[0]
-);
-}
-
-
-/* ----------------------------- */
-/* EXTRA FLAGS */
-/* ----------------------------- */
-
-const isBeginner =
-  lowerQuery.includes(
-    "beginner"
-  );
-
-const wantsRoutine =
-  lowerQuery.includes(
-    "routine"
-  );
-
-/* ----------------------------- */
-/* CONCERN DETECTION */
-/* ----------------------------- */
-
-const detectedConcerns = [];
-
-if (
-  lowerQuery.includes("acne")
-)
-  detectedConcerns.push(
-    "acne"
-  );
-
-if (
-  lowerQuery.includes("oily")
-)
-  detectedConcerns.push(
-    "oiliness"
-  );
-
-if (
-  lowerQuery.includes("dry")
-)
-  detectedConcerns.push(
-    "dryness"
-  );
-
-if (
-  lowerQuery.includes(
-    "sensitive"
-  )
-)
-  detectedConcerns.push(
-    "sensitivity"
-  );
-
-if (
-  lowerQuery.includes(
-    "blackheads"
-  )
-)
-  detectedConcerns.push(
-    "blackheads"
-  );
-
-if (
-  lowerQuery.includes(
-    "dehydrated"
-  )
-)
-  detectedConcerns.push(
-    "dehydration"
-  );
-
-/* ----------------------------- */
-/* SKIN TYPE */
-/* ----------------------------- */
-
-let skinType = "Combination";
-
-if (
-  lowerQuery.includes("oily")
-) {
-  skinType = "Oily";
-}
-
-if (
-  lowerQuery.includes("dry")
-) {
-  skinType = "Dry";
-}
-
-if (
-  lowerQuery.includes(
-    "sensitive"
-  )
-) {
-  skinType = "Sensitive";
-}
-
-/* ----------------------------- */
-/* COMPATIBILITY SCORE */
-/* ----------------------------- */
-
-const compatibilityScore =
-  Math.floor(
-    Math.random() * 15
-  ) + 85;
-
-/* ----------------------------- */
-/* PRODUCT MATCHING */
-/* ----------------------------- */
-
-let matchedProducts = [];
-
-// CONCERN MATCHING
-
-if (
-  detectedConcerns.length > 0
-) {
-
-  matchedProducts =
-    products.filter(
-      (product) =>
-
-        product.concerns.some(
-          (concern) =>
-
-            detectedConcerns.includes(
-              concern
-            )
-        )
-    );
-
-} else {
-
-  // FALLBACK PRODUCTS
-
-  matchedProducts =
-    products;
-}
-
-/* ----------------------------- */
-/* BEGINNER FILTER */
-/* ----------------------------- */
-
-if (isBeginner) {
-
-  matchedProducts =
-    matchedProducts.filter(
-      (product) =>
-
-        product.category !==
-        "Active"
-    );
-}
-
-/* ----------------------------- */
-/* BUDGET FILTER */
-/* ----------------------------- */
-
-if (budget) {
-
-  matchedProducts =
-    matchedProducts.filter(
-      (product) =>
-
-        product.budget <=
-        budget
-    );
-}
-
-/* ----------------------------- */
-/* EMPTY FALLBACK */
-/* ----------------------------- */
-
-if (
-  matchedProducts.length === 0
-  ) {
-  
-  matchedProducts =
-  products.filter(
-  (product) =>
-  
-
-      !budget ||
-  
-      product.budget <= budget
-  );
-
-  
-  matchedProducts =
-  matchedProducts.slice(0, 3);
+  for (const product of ranked) {
+    if (picked.length === limit) break;
+    if (!usedCategories.has(product.category)) {
+      picked.push(product);
+      usedCategories.add(product.category);
+    }
   }
-  
 
-/* ----------------------------- */
-/* LIMIT PRODUCTS */
-/* ----------------------------- */
+  // If there were fewer than `limit` categories, fill the rest in rank order
+  for (const product of ranked) {
+    if (picked.length === limit) break;
+    if (!picked.includes(product)) picked.push(product);
+  }
 
-matchedProducts =
-  matchedProducts.slice(0, 4);
+  return picked;
+};
 
-/* ----------------------------- */
-/* RESPONSE */
-/* ----------------------------- */
+router.post("/analyze", async (req, res) => {
+  try {
+    const { query } = req.body;
 
-const response = `
+    const lowerQuery = query.toLowerCase();
+
+    let budget = null;
+
+    const budgetMatch = lowerQuery.match(/\d+/);
+
+    if (budgetMatch) {
+      budget = parseInt(budgetMatch[0]);
+    }
+
+    const isBeginner = lowerQuery.includes("beginner");
+    const wantsRoutine = lowerQuery.includes("routine");
+
+    const detectedConcerns = [];
+
+    if (lowerQuery.includes("acne")) detectedConcerns.push("acne");
+    if (lowerQuery.includes("oily")) detectedConcerns.push("oiliness");
+    if (lowerQuery.includes("dry")) detectedConcerns.push("dryness");
+    if (lowerQuery.includes("sensitive")) detectedConcerns.push("sensitivity");
+    if (lowerQuery.includes("blackheads")) detectedConcerns.push("blackheads");
+    if (lowerQuery.includes("dehydrated")) detectedConcerns.push("dehydration");
+
+    let skinType = "Combination";
+
+    if (lowerQuery.includes("oily")) skinType = "Oily";
+    if (lowerQuery.includes("dry")) skinType = "Dry";
+    if (lowerQuery.includes("sensitive")) skinType = "Sensitive";
+
+    const compatibilityScore = Math.floor(Math.random() * 15) + 85;
+
+    // ---- Start with every product, then apply the same filters as before ----
+    let candidates = products;
+
+    if (isBeginner) {
+      candidates = candidates.filter((product) => product.category !== "Active");
+    }
+
+    if (budget) {
+      candidates = candidates.filter((product) => product.budget <= budget);
+    }
+
+    // ---- Score each candidate by how well it fits the query ----
+    // +3 for every detected concern the product treats
+    // +2 if the product suits the detected skin type
+    // Random tie-break so equally good products rotate between searches
+    const scored = candidates
+      .map((product) => {
+        const concernHits = product.concerns.filter((c) =>
+          detectedConcerns.includes(c)
+        ).length;
+        const skinTypeHit = product.skinTypes.includes(skinType.toLowerCase())
+          ? 1
+          : 0;
+
+        return {
+          product,
+          score: concernHits * 3 + skinTypeHit * 2,
+          concernHits,
+          tie: Math.random(),
+        };
+      })
+      .sort((a, b) => b.score - a.score || b.tie - a.tie);
+
+    // When concerns were detected, only keep products that treat at least one
+    let ranked = scored;
+    if (detectedConcerns.length > 0) {
+      const treating = scored.filter((s) => s.concernHits > 0);
+      if (treating.length > 0) ranked = treating;
+    }
+
+    const matchedProducts = pickVaried(
+      ranked.map((s) => s.product),
+      4
+    );
+
+    const response = `
 Skin Analysis:
 Your skin concerns appear related to ${detectedConcerns.length > 0 ? detectedConcerns.join(", ") : "general skincare maintenance"}.
-${isBeginner ? "This routine is beginner-friendly and focuses on gentle skincare.\n": ""}
-${wantsRoutine ? "A personalized skincare routine has been generated for your needs.\n": ""}
+${isBeginner ? "This routine is beginner-friendly and focuses on gentle skincare.\n" : ""}
+${wantsRoutine ? "A personalized skincare routine has been generated for your needs.\n" : ""}
 Recommended Products:
-${matchedProducts.map((product) =>`• ${product.name} (${product.category}) - ₹${product.budget}`).join("\n")}
+${matchedProducts.map((product) => `• ${product.name} (${product.category}) - ₹${product.budget}`).join("\n")}
 
 Suggested Routine:
 1. Gentle Cleanser
@@ -245,62 +119,26 @@ Suggested Routine:
 
 `;
 
-/* ----------------------------- */
-/* DEBUG LOGS */
-/* ----------------------------- */
+    console.log("QUERY:", query);
+    console.log("CONCERNS:", detectedConcerns);
+    console.log("MATCHES:", matchedProducts.map((p) => p.name));
 
-console.log(
-  "QUERY:",
-  query
-);
+    res.status(200).send({
+      success: true,
+      response,
+      matchedProducts,
+      skinType,
+      compatibilityScore,
+      detectedConcerns,
+    });
+  } catch (error) {
+    console.log("AI ROUTE ERROR:", error);
 
-console.log(
-  "CONCERNS:",
-  detectedConcerns
-);
-
-console.log(
-  "MATCHES:",
-  matchedProducts
-);
-
-console.log(
-  "FINAL RESPONSE:",
-  response
-);
-
-/* ----------------------------- */
-/* RESPONSE SEND */
-/* ----------------------------- */
-
-res.status(200).send({
-  success: true,
-
-  response,
-
-  matchedProducts,
-
-  skinType,
-
-  compatibilityScore,
-
-  detectedConcerns,
-});
-
-} catch (error) {
-
-console.log(
-  "AI ROUTE ERROR:",
-  error
-);
-
-res.status(500).send({
-  success: false,
-  message:
-    "AI analysis failed",
-});
-
-}
+    res.status(500).send({
+      success: false,
+      message: "AI analysis failed",
+    });
+  }
 });
 
 export default router;
