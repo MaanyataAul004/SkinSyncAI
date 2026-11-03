@@ -1,5 +1,5 @@
 import express from "express";
-import products from "../data/products.js";
+import products from "../models/data/products.js";
 
 const router = express.Router();
 
@@ -8,12 +8,19 @@ const CONCERN_KEYWORDS = {
   acne: ["acne", "pimple", "breakout", "break out", "zit"],
   oiliness: ["oily", "greasy", "shiny", "excess oil", "oil control"],
   dryness: ["dry", "flaky", "flaking", "rough patches"],
-  sensitivity: ["sensitive", "irritat", "reactive", "redness"],
+  sensitivity: ["sensitive", "irritation", "irritated", "reactive"],
   blackheads: ["blackhead", "clogged pore"],
-  dehydration: ["dehydrat"],
-  pigmentation: ["pigmentation", "dark spot", "uneven tone", "uneven skin", "hyperpigment", "dark mark"],
+  dehydration: ["dehydrated", "dehydration"],
+  pigmentation: ["pigmentation", "dark spot", "uneven tone","uneven skin", "hyperpigmentation", "dark mark"],
+  repair: ["barrier repair", "damaged barrier", "skin barrier"],
+  circles: ["dark circles", "under eye darkness"],
+  dullness: ["dull", "dullness", "lack of glow"],
+  pores: ["large pores", "visible pores", "enlarged pores"],
+  puffiness: ["puffy", "puffiness", "under eye bags"],
+  redness: ["redness", "red skin", "redness-prone"],
+  "sun protection": ["sun protection", "sun damage", "uv protection"],
+  texture: ["uneven texture", "rough texture", "skin texture"]
 };
-
 // ---------- Budget: only numbers that are clearly a price ----------
 const BUDGET_PATTERNS = [
   /(?:under|below|within|less than|upto|up to|max|maximum|budget(?: of| is)?|around|about)\s*(?:rs\.?|inr|₹)?\s*(\d{2,5})/,
@@ -81,10 +88,13 @@ router.post("/analyze", async (req, res) => {
     );
 
     // ---- 2. Detect skin type ----
-    let skinType = "Combination";
-    if (lowerQuery.includes("oily")) skinType = "Oily";
-    if (lowerQuery.includes("dry")) skinType = "Dry";
-    if (lowerQuery.includes("sensitive")) skinType = "Sensitive";
+    let skinType = "combination";
+    if (lowerQuery.includes("normal skin")) skinType = "normal";
+    if (lowerQuery.includes("oily")) skinType = "oily";
+    if (lowerQuery.includes("dry")) skinType = "dry";
+    if (lowerQuery.includes("sensitive")) skinType = "sensitive";
+    if (lowerQuery.includes("dehydrated")) skinType = "dehydrated";
+    if (lowerQuery.includes("acne-prone") || lowerQuery.includes("acne prone")) {skinType = "acne-prone";}
 
     // ---- 3. Fallback: nothing we recognise ----
     if (detectedConcerns.length === 0) {
@@ -126,8 +136,10 @@ router.post("/analyze", async (req, res) => {
       : 0;
 
     // ---- 6. Explanation text ----
-    const routine = ROUTINES[skinType].map((step, i) => `${i + 1}. ${step}`).join("\n");
-
+    const routine = (ROUTINES[skinType.charAt(0).toUpperCase() + skinType.slice(1)] || ROUTINES.Combination)
+    .map((step, i) => `${i + 1}. ${step}`)
+    .join("\n");
+    
     const productLines = matchedProducts.length
       ? matchedProducts.map((p) => `• ${p.name} (${p.category}) - ₹${p.budget}`).join("\n")
       : `No products found${budget ? ` within ₹${budget}` : ""}. Try a higher budget.`;

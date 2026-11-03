@@ -151,18 +151,6 @@ if (
 
 
 
-if (isBeginner) {
-
-  matchedProducts =
-    matchedProducts.filter(
-      (product) =>
-
-        product.category !==
-        "Active"
-    );
-}
-
-
 
 if (budget) {
 
