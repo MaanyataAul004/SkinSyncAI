@@ -1,7 +1,35 @@
-import React from "react";
+import React, { useState } from "react";
 import Layout from "../components/Layout/Layout";
 
 const Contact = () => {
+const [name, setName] = useState("");
+const [email, setEmail] = useState("");
+const [message, setMessage] = useState("");
+const [status, setStatus] = useState("");
+
+const handleSend = () => {
+  if (!name.trim() || !email.trim() || !message.trim()) {
+    setStatus("Please fill in your name, email and message.");
+    return;
+  }
+  if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
+    setStatus("Please enter a valid email address.");
+    return;
+  }
+  // Demo form: the message is saved in this browser (no email server yet)
+  try {
+    const saved = JSON.parse(localStorage.getItem("skinsyncMessages")) || [];
+    saved.push({ name, email, message, sentAt: new Date().toISOString() });
+    localStorage.setItem("skinsyncMessages", JSON.stringify(saved));
+  } catch (e) {
+    console.log("Could not save message:", e);
+  }
+  setStatus(`Thank you, ${name.trim()}! We have received your message ✨`);
+  setName("");
+  setEmail("");
+  setMessage("");
+};
+
 return (
 <Layout title={"Contact"}>
 <div
@@ -112,6 +140,8 @@ alignItems: "center",
         <input
           type="text"
           placeholder="Your name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           style={{
             width: "100%",
             padding: "18px",
@@ -125,6 +155,8 @@ alignItems: "center",
         <input
           type="email"
           placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
           style={{
             width: "100%",
             padding: "18px",
@@ -138,6 +170,8 @@ alignItems: "center",
         <textarea
           rows="6"
           placeholder="Your message..."
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
           style={{
             width: "100%",
             padding: "18px",
@@ -150,6 +184,7 @@ alignItems: "center",
         />
 
         <button
+          onClick={handleSend}
           style={{
             width: "100%",
             padding: "18px",
@@ -165,6 +200,12 @@ alignItems: "center",
         >
           Send Message ✨
         </button>
+
+        {status && (
+          <p style={{ marginTop: "18px", color: "#666", lineHeight: "1.6" }}>
+            {status}
+          </p>
+        )}
       </div>
     </div>
   </div>

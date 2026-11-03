@@ -1,4 +1,5 @@
-
+// SkinSync AI product dataset (500 products).
+// Fields: id, name, category, skinTypes, concerns, ingredients, budget (INR), why
 const products = [
   {"id":1,"name":"Minimalist Niacinamide 5% Serum","category":"Serum","skinTypes":["oily","combination","acne-prone"],"concerns":["acne","oiliness","pores"],"ingredients":["Niacinamide","Zinc"],"budget":599,"why":"Helps control oil production and reduce acne marks."},
   {"id":2,"name":"The Derma Co Salicylic Acid Serum","category":"Serum","skinTypes":["oily","acne-prone"],"concerns":["acne","blackheads"],"ingredients":["Salicylic Acid"],"budget":799,"why":"Targets active acne and unclogs pores effectively."},
